@@ -1,0 +1,7 @@
+image: maze_enviroment.pgm       # Relative or absolute path to the PGM file
+resolution: 0.05     # Resolution of the map (size of a grid cell, in meters)
+origin: [0.0, 0.0, 0.0]  # Map origin [x, y, theta] in meters, with theta in radians
+negate: 0           # 0 for black as obstacle, 1 for black as free space
+occupied_thresh: 0.65  # Threshold to consider a cell as an obstacle (0-1 scale)
+free_thresh: 0.2      # Threshold to consider a cell as free space (0-1 scale)
+
