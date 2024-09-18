@@ -137,6 +137,7 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/simple_planner_node.cpp)
 add_executable(grid_map_listener src/grid_map_listener.cpp)
 add_executable(A_star src/A_star.cpp)
+add_executable(initial_pose_marker src/initial_pose_marker.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -149,6 +150,7 @@ add_executable(A_star src/A_star.cpp)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(grid_map_listener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(A_star ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(initial_pose_marker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(${PROJECT_NAME}_node
@@ -160,6 +162,10 @@ target_link_libraries(grid_map_listener
 target_link_libraries(A_star
   ${catkin_LIBRARIES}
 )
+target_link_libraries(initial_pose_marker
+  ${catkin_LIBRARIES}
+)
+
 
 #############
 ## Install ##

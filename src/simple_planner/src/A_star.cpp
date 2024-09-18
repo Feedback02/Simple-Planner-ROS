@@ -23,7 +23,10 @@ nav_msgs::OccupancyGrid::ConstPtr grid_map_;
 nav_msgs::OccupancyGrid::ConstPtr costmap_;
 geometry_msgs::PoseStamped goal_pose_;
 geometry_msgs::Pose robot_pose_;
+nav_msgs::Path last_path_msg;  // Store the last computed path
+
 bool goal_received = false;
+bool new_goal = false;  // Flag to indicate a new goal has been received
 bool map_received = false;
 bool costmap_received = false;
 bool initial_pose_received = false;
@@ -189,18 +192,16 @@ std::vector<std::pair<int, int>> aStarSearch(
 }
 
 // Callback function to get the map
-void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg, ros::Subscriber& map_sub) {
+void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg) {
     grid_map_ = msg;
     map_received = true;
-    map_sub.shutdown();  // Unsubscribe from the map topic after receiving the map
     ROS_INFO("Map received.");
 }
 
 // Callback function to get the costmap
-void costmapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg, ros::Subscriber& costmap_sub) {
+void costmapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg) {
     costmap_ = msg;
     costmap_received = true;
-    costmap_sub.shutdown();  // Unsubscribe from the costmap topic after receiving the costmap
     ROS_INFO("Costmap received.");
 }
 
@@ -223,13 +224,14 @@ void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
     goal_pose_.pose.position.x = goal_x_grid;
     goal_pose_.pose.position.y = goal_y_grid;
     goal_received = true;
+    new_goal = true;  // Indicate a new goal has been received
 
     ROS_INFO("Goal received at world coordinates x: %f, y: %f, converted to grid coordinates x: %d, y: %d",
              goal_x_world, goal_y_world, goal_x_grid, goal_y_grid);
 }
 
 // Callback function to get the initial pose
-void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg, ros::Subscriber& initial_pose_sub) {
+void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg) {
     // Use the map resolution and origin to convert world coordinates to grid coordinates
     double resolution = grid_map_->info.resolution;
     double origin_x = grid_map_->info.origin.position.x;
@@ -247,13 +249,12 @@ void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStamped::ConstPt
     robot_pose_.position.x = robot_x_grid;
     robot_pose_.position.y = robot_y_grid;
     robot_pose_.orientation = msg->pose.pose.orientation;  // Keep orientation (quaternion) the same
-    initial_pose_received = true;
 
-    ROS_INFO("Initial pose received at world coordinates x: %f, y: %f, converted to grid coordinates x: %d, y: %d",
-             robot_x_world, robot_y_world, robot_x_grid, robot_y_grid);
-
-    // Unsubscribe after receiving the initial pose
-    initial_pose_sub.shutdown();
+    if (!initial_pose_received) {
+        initial_pose_received = true;
+        ROS_INFO("Initial pose received at world coordinates x: %f, y: %f, converted to grid coordinates x: %d, y: %d",
+                 robot_x_world, robot_y_world, robot_x_grid, robot_y_grid);
+    }
 }
 
 int main(int argc, char** argv) {
@@ -264,56 +265,62 @@ int main(int argc, char** argv) {
     ros::Publisher path_pub = nh.advertise<nav_msgs::Path>("/planned_path", 1);
 
     // Subscribe to the map, costmap, goal, and initial pose
-    ros::Subscriber map_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/map", 1, boost::bind(mapCallback, _1, boost::ref(map_sub)));
-    ros::Subscriber costmap_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/costmap", 1, boost::bind(costmapCallback, _1, boost::ref(costmap_sub)));
+    ros::Subscriber map_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/map", 1, mapCallback);
+    ros::Subscriber costmap_sub = nh.subscribe<nav_msgs::OccupancyGrid>("/costmap", 1, costmapCallback);
     ros::Subscriber goal_sub = nh.subscribe("/move_base_simple/goal", 1, goalCallback);
-    ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1, boost::bind(initialPoseCallback, _1, boost::ref(initial_pose_sub)));
+    ros::Subscriber initial_pose_sub = nh.subscribe<geometry_msgs::PoseWithCovarianceStamped>("/initialpose", 1, initialPoseCallback);
 
     ros::Rate rate(10.0);  // Set the rate at which to run the loop (10Hz)
 
     while (ros::ok()) {
         ros::spinOnce();
 
-        // If we have the map, costmap, initial pose, and goal, run the A* algorithm
-        if (goal_received && map_received && initial_pose_received) {
-            int map_width = grid_map_->info.width;
-            int map_height = grid_map_->info.height;
+        // If we have the map, initial pose, and goal
+        if (map_received && initial_pose_received && goal_received) {
+            // If a new goal has been received, run the A* algorithm
+            if (new_goal) {
+                int map_width = grid_map_->info.width;
+                int map_height = grid_map_->info.height;
 
-            int start_x = static_cast<int>(robot_pose_.position.x);
-            int start_y = static_cast<int>(robot_pose_.position.y);
-            int goal_x = static_cast<int>(goal_pose_.pose.position.x);
-            int goal_y = static_cast<int>(goal_pose_.pose.position.y);
+                int start_x = static_cast<int>(robot_pose_.position.x);
+                int start_y = static_cast<int>(robot_pose_.position.y);
+                int goal_x = static_cast<int>(goal_pose_.pose.position.x);
+                int goal_y = static_cast<int>(goal_pose_.pose.position.y);
 
-            std::vector<std::pair<int, int>> path = aStarSearch(start_x, start_y, goal_x, goal_y, map_width, map_height);
+                std::vector<std::pair<int, int>> path = aStarSearch(start_x, start_y, goal_x, goal_y, map_width, map_height);
 
-            // Convert the path to nav_msgs/Path and publish it
-            nav_msgs::Path path_msg;
-            path_msg.header.stamp = ros::Time::now();
-            path_msg.header.frame_id = "map";
+                // Convert the path to nav_msgs/Path
+                nav_msgs::Path path_msg;
+                path_msg.header.stamp = ros::Time::now();
+                path_msg.header.frame_id = "map";
 
-            double resolution = grid_map_->info.resolution;
-            double origin_x = grid_map_->info.origin.position.x;
-            double origin_y = grid_map_->info.origin.position.y;
+                double resolution = grid_map_->info.resolution;
+                double origin_x = grid_map_->info.origin.position.x;
+                double origin_y = grid_map_->info.origin.position.y;
 
-            for (const auto& point : path) {
-                geometry_msgs::PoseStamped pose;
-                // Convert grid coordinates back to world coordinates
-                pose.pose.position.x = point.first * resolution + origin_x + resolution / 2.0;
-                pose.pose.position.y = point.second * resolution + origin_y + resolution / 2.0;
-                pose.pose.orientation.w = 1.0;  // No orientation
-                path_msg.poses.push_back(pose);
+                for (const auto& point : path) {
+                    geometry_msgs::PoseStamped pose;
+                    // Convert grid coordinates back to world coordinates
+                    pose.pose.position.x = point.first * resolution + origin_x + resolution / 2.0;
+                    pose.pose.position.y = point.second * resolution + origin_y + resolution / 2.0;
+                    pose.pose.orientation.w = 1.0;  // No orientation
+                    path_msg.poses.push_back(pose);
+                }
+
+                if (!path_msg.poses.empty()) {
+                    last_path_msg = path_msg;  // Store the path for continuous publishing
+                    ROS_INFO("Computed new path with %zu poses.", last_path_msg.poses.size());
+                } else {
+                    ROS_WARN("No path found by A* algorithm.");
+                }
+
+                new_goal = false;  // Reset the new goal flag
             }
 
-            if (!path_msg.poses.empty()) {
-                path_pub.publish(path_msg);
-                ROS_INFO("Published path with %zu poses.", path_msg.poses.size());
-            } else {
-                ROS_WARN("No path found by A* algorithm.");
+            // Publish the last computed path continuously
+            if (!last_path_msg.poses.empty()) {
+                path_pub.publish(last_path_msg);
             }
-
-            // Reset flags to avoid re-running the planner unnecessarily
-            goal_received = false;
-            initial_pose_received = false;
         }
 
         rate.sleep();
