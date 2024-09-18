@@ -3,6 +3,8 @@
 
 This project implements an A* path planning algorithm in ROS, along with several supporting nodes to load a map, visualize the robot’s path in RViz, and set the robot's initial position and goal. The project works on a map where each pixel represents a specific size in meters.
 
+
+
 ## **Overview of the Project**
 
 The project involves the following steps:
@@ -11,6 +13,8 @@ The project involves the following steps:
 3. **Setting the initial robot position**: The `initial_pose_marker` node is used to set the robot's initial position by publishing a marker in RViz.
 4. **Setting the goal in RViz**: The goal position can be set using RViz's `2D Nav Goal` tool. And the initial position of the robot can be set using RViz's `2D Pos Estimate` tool.  The `A_star` node listens for this goal and computes the optimal path from the robot's initial position to the goal.
 5. **Path planning with A***: The `A_star` node computes the shortest path using the A* algorithm and publishes the planned path for visualization in RViz.
+
+[Watch the video](https://drive.google.com/file/d/19fhCVT62H5O7-elryMddDX72EevoF78h/view?usp=sharing)
 
 ## **Setup Instructions**
 
