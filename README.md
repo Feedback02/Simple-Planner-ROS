@@ -18,7 +18,7 @@ example of path
 ![Inflation Area Example](version2_example.png)
 costmap
 ![Inflation Area Example](version2_example_costmap.png)
-meanwhile in version 2, the costmap:
+
 
 ## **Overview of the Project**
 
