@@ -25,6 +25,7 @@ geometry_msgs::PoseStamped goal_pose_;
 geometry_msgs::Pose robot_pose_;
 nav_msgs::Path last_path_msg;  // Store the last computed path
 
+const int OBSTACLE_THRESHOLD = 50;  // Any value greater than this is considered an obstacle
 bool goal_received = false;
 bool new_goal = false;  // Flag to indicate a new goal has been received
 bool map_received = false;
@@ -67,20 +68,19 @@ double getCost(int x, int y, int map_width, int map_height) {
 
     // Check occupancy grid
     int occupancy_value = grid_map_->data[index];
-    if (occupancy_value == 100) {
+    if (occupancy_value > OBSTACLE_THRESHOLD) {
         return std::numeric_limits<double>::infinity(); // Occupied cell
     }
     if (occupancy_value == -1) {
         return std::numeric_limits<double>::infinity(); // Unknown cell
     }
-
     // Get cost from costmap (if available)
     if (costmap_) {
         int cost_value = costmap_->data[index];
         if (cost_value < 0) {
             return std::numeric_limits<double>::infinity();  // Unknown cost
         }
-        return cost_value / 100.0;  // Normalize the cost (assuming costmap values are between 0-100)
+        return cost_value;///255;  // Normalize the cost 
     } else {
         // If costmap is not available, assume uniform cost
         return 0.0;
@@ -151,7 +151,7 @@ std::vector<std::pair<int, int>> aStarSearch(
             int map_index = nx + ny * map_width;
             int occupancy_value = grid_map_->data[map_index];
 
-            if (occupancy_value == 100) {
+            if (occupancy_value > OBSTACLE_THRESHOLD) {
                 continue; // Skip occupied cells (walls)
             }
 
@@ -228,6 +228,15 @@ void goalCallback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
 
     ROS_INFO("Goal received at world coordinates x: %f, y: %f, converted to grid coordinates x: %d, y: %d",
              goal_x_world, goal_y_world, goal_x_grid, goal_y_grid);
+
+    int map_index = goal_x_grid + goal_y_grid * grid_map_->info.width;;
+    int occupancy_value = grid_map_->data[map_index];
+    ROS_INFO("goal grid value is: %d",
+             occupancy_value);
+    ROS_INFO("goal costmap value is: %f",
+             getCost(goal_x_grid, goal_y_grid, grid_map_->info.width, grid_map_->info.height));
+    ROS_INFO("goal costmap_ original value is: %d",
+             costmap_->data[map_index]);
 }
 
 // Callback function to get the initial pose

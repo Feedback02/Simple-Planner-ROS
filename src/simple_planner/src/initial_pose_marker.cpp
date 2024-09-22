@@ -19,9 +19,9 @@ public:
         marker_.id = 0;
         marker_.type = visualization_msgs::Marker::SPHERE;  // Changed to SPHERE
         marker_.action = visualization_msgs::Marker::ADD;
-        marker_.scale.x = 0.5;  // Diameter in x
-        marker_.scale.y = 0.5;  // Diameter in y
-        marker_.scale.z = 0.5;  // Diameter in z
+        marker_.scale.x = 0.3;  // Diameter in x
+        marker_.scale.y = 0.3;  // Diameter in y
+        marker_.scale.z = 0.3;  // Diameter in z
         marker_.color.a = 1.0;  // Alpha
         marker_.color.r = 0.0;  // Red
         marker_.color.g = 1.0;  // Green

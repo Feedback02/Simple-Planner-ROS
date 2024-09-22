@@ -12,8 +12,10 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
   tf2_ros
+  cv_bridge
 )
-
+# Find OpenCV
+find_package(OpenCV REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -119,6 +121,7 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -158,6 +161,7 @@ add_dependencies(initial_pose_marker ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catki
 # )
 target_link_libraries(grid_map_listener
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 target_link_libraries(A_star
   ${catkin_LIBRARIES}
